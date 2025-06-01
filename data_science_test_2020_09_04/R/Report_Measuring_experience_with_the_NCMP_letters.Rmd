@@ -1,0 +1,181 @@
+---
+title: "Measuring parental user experience with the NCMP letters"
+subtitle: "Updated Version for the Nottinghamshire Healthcare NHS Foundation Trust"
+author: "Martin Cadek"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+    toc: TRUE
+    toc_float: TRUE
+    toc_depth: 4
+    code_download: TRUE
+knit: (
+  function(inputFile, encoding) { 
+  
+    file_title <- 'Report - Measuring experience with the NCMP letters'
+    
+    rmarkdown::render( 
+      input       = inputFile, 
+      encoding    = encoding, 
+      params      = list(sub_title = file_title),      
+      output_file = file_title) })
+---
+
+```{r setup_local, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE) # Hide all code chunks
+options(digits = 2)
+options(scipen = 999)
+options("knitr.graphics.auto_pdf" = TRUE) # https://blog.earo.me/2019/10/26/reduce-frictions-rmd/
+# All pictures are saved in all_plots/report
+```
+
+
+```{r load_packages, include = FALSE, results = 'hide'}
+library(here)
+library(knitr)
+```
+
+```{r load_scripts_off, include = FALSE, results = 'hide'}
+# source(file = here("R", "set_project.R"), echo = FALSE)
+# source(file = here("R", "set_functions.R"), echo = FALSE)
+# source(file = here("R", "make_model.R"), echo = FALSE)
+```
+
+## Introduction
+The following report shows the results of User Experience Questionnaire (Laugwitz et al., 2008). The measure was used as part of my PhD project in order to assess parental opinions regarding the National Child Measurement Programme (the NCMP) feedback letters measuring their child's weight and height. Specifically, the project asked the question *“What are the opinions of parents or carers about the NCMP result letters?”*.
+
+**This report is a shorter version adapted for the purpose of illustrating my work as part of the interview for the data scientist position at Nottinghamshire Healthcare NHS Foundation Trust. This version utilised synthetic data (using the synthpop package) and removed all personal data.**
+
+## The nature of this report
+The focus was on overall experience with the letter as measured across several domains such as Attractiveness (overall impression), Dependability (feeling in control), Efficiency (effort required to use), Novelty (is it innovative or creative), Perspicuity (accessibility and ease of understanding), Stimulation (is it exciting or motivating) (Schrepp et al., 2014). 
+
+Conceptually, the user experience model was expected to be affected by the following explanatory variables presented in the DAG (Directed acyclic graph) below. 
+
+```{r dag, out.width="100%", fig.cap="DAG - UEQ"}
+knitr::include_graphics(here("output/all_plots/report/dag_updated_m1_UEQ.png"))
+```
+
+## Assessing the correlation structure
+The correlation structure of all variables was assessed as part of constructing the models focusing on interaction with the letter, and user experience. The matrix was also used to understand the variables and decide which to include. As most variables were categorical, a heterogeneous correlation matrix was computed using the “hetcor" function from the “polycor” package (Fox, 2019). The function uses Pearson correlation on numeric variables, but polyserial if variables are numeric and ordinal, or polychoric when variables are ordinal. The method was applied to obtain a correlation matrix between all outcome and exploratory variables. During the computation process, some cells were adjusted for 0 values using the correction for continuity. The matrix was developed on 86 participants who had non-missing values. 
+
+To decide which variables, I should exclude from further analyses, I have used the criteria of r ≤ 0.20 or r ≥ -0.20 while not being correlated with more than one outcome variable (y > 1).
+
+```{r correlation, out.width="100%", fig.cap="Correlation between explanatory and outcome variables"}
+knitr::include_graphics(here("output/all_plots/report/correlation_categorical.png"))
+```
+
+## Variable coercion and visualisation
+The figure below shows a reduction in the levels for all variables with k > 2. This removed levels that were poorly represented in the sample (such as Underweight category) in exchange for analytical detail. I argue that with only 89 participants this was a necessary step before the analysis itself – for example, levels of UW or Doctoral degree were low and would result in unequal comparisons, therfore, they were collapsed.
+
+```{r coercion, out.width="100%", fig.cap="Collapsing the levels"}
+knitr::include_graphics(here("output/all_plots/report/pre_post_levels_merged.png"))
+```
+
+## Findings regarding the UEQ - Attractiveness
+The first outcome variable assessed in the UEQ was attractiveness which measured the overall impression of the product (Schrepp, 2019, p. 2).
+
+### Predictors
+The visual representation below shows plots with the outcome variable (UEQ: Attractiveness) being regressed on each explanatory variable. 
+
+```{r predictors, out.width="100%", fig.cap="Predictors of the Attractiveness"}
+knitr::include_graphics(here("output/all_plots/report/predictors_UEQ_Attractiveness_vars.png"))
+```
+
+
+### Models
+Seven models were tested against each other and the best performing model was selected (with explanatory variables included hierarchically). Table below shows the statistics of each model and the corresponding explanatory variable on the outcome variable. 
+
+```{r models_statistics, message=FALSE, results = "hide"}
+comp_coefficients <- compareCoefs(ueq_att_mod_1, 
+             ueq_att_mod_2, 
+             ueq_att_mod_3, 
+             ueq_att_mod_4, 
+             ueq_att_mod_5, 
+             ueq_att_mod_6, 
+             ueq_att_mod_7, pvals = TRUE)
+
+comp_coefficients %>%
+  as_tibble(rownames = "Coefficients") %>%
+  drop_na(Coefficients, `Model 7`) %>%
+  mutate_if(is.numeric, round, 2) %>%
+  mutate(Coefficients = str_replace_all(Coefficients, "_CAT|_short", " "),
+         Coefficients = str_replace_all(Coefficients, "_", " ")) %>%
+  mutate_all(replace_na, "*") %>%
+  qflextable()
+
+```
+
+When compared (table below), model 2 seemed to perform the best.
+
+```{r comparing_models}
+bind_rows(
+  glance(ueq_att_mod_1),
+  glance(ueq_att_mod_2),
+  glance(ueq_att_mod_3),
+  glance(ueq_att_mod_4),
+  glance(ueq_att_mod_5),
+  glance(ueq_att_mod_6),
+  glance(ueq_att_mod_7), .id = "model") %>%
+  mutate_if(is.numeric, round, 2) %>%
+  qflextable()
+```
+
+The second model was also favoured given the significant statistics as presented in table below as the model seemed to be improved with the inclusion of an additional explanatory variable.
+
+```{r comparing_models_further}
+tidy(model_comparison) %>%
+  rownames_to_column(var = "model") %>%
+  mutate_if(is.numeric, round, 2) %>%
+  mutate_all(replace_na, "*") %>%
+  qflextable()
+```
+
+### Selecting the final model
+
+The AIC and BIC values are expected to be minimised (the lower values are preferable). Figure below shows the visual confirmation to the previous statistics and confirms the model 2 (df = 5) as favourable.
+
+```{r aic_bic, out.width="100%", fig.cap="AIC/BIC across the models"}
+knitr::include_graphics(here("output/all_plots/report/aicbic_UEQ_Attractiveness_mod.png"))
+```
+
+Once the model was selected number of diagnostics were performed to measure the model (Figure below). Residual plots showed no indication of unusual patterns; however, few outliers were identified in the model.
+
+```{r diagnostics_1, out.width="100%", fig.cap="Model diagnostics: Normality"}
+knitr::include_graphics(here("output/all_plots/report/diagnostic_1_UEQ_Attractiveness.png"))
+```
+
+Further outlier assessment (figure below) shows several cases as possible outliers, some of which were identified in the residual plots. The outliers were removed.
+
+```{r diagnostics_2, out.width="100%", fig.cap="Model diagnostics: Outliers"}
+knitr::include_graphics(here("output/all_plots/report/diagnostic_2_UEQ_Attractiveness.png"))
+```
+
+### The Final model
+While holding all of the variables constant, the final model shows a significant difference between the non-HW versions and the HW version of the letters. Participant’s overall impression whilst receiving the letters indicating that their child is underweight, overweight, or very overweight was - 1.59 lower than those of participants receiving the healthy weight result while holding the other variables constant. Similarly, the impression with the letters was lower by -0.56 for the experimental version of the letters and 0.55 higher for the experimental version (**note that this is not identical to the result produced in the raw data and likely variation caused by synthpop package**).
+
+```{r final_model_table_tidy}
+ueq_att_final %>% tidy() %>%
+  mutate(conf_low = as_tibble(confint(ueq_att_final))$`2.5 %`,
+         conf_upper = as_tibble(confint(ueq_att_final))$`97.5 %`) %>%
+  mutate_if(is.numeric, round, 2) %>%
+  mutate(term = str_replace_all(term, "_CAT|_short", " "),
+            term = str_replace_all(term, "_", " ")) %>%
+  qflextable()
+
+```
+
+The model (table below) also explained 28 % of the variance in the data which is fairly reasonable given the poor sample size.
+
+```{r final_model_table_glance}
+glance(ueq_att_final) %>%
+  mutate_if(is.numeric, round, 2) %>%
+  qflextable()
+```
+
+### Visualising the final model
+Figure (below) shows the differences in attractiveness scores between the letter versions in the final model (the final model was defined as: *the Attractiveness ~ Child's Weight (category in the letter) + Design Version*). The visualisation indicates that participants favoured the HW (healthy weight) version and somewhat less conclusively the control version of the letter as opposed to the other variables.
+
+```{r final_model_visual, out.width="100%", fig.cap="Final model plotted in data"}
+knitr::include_graphics(here("output/all_plots/report/final_vis_UEQ_Attractiveness.png"))
+```

@@ -1,0 +1,16 @@
+library(data.table)
+library(tidyverse)
+library(usethis)
+library(snakecase)
+library(funModeling)
+library(conflicted)
+library(ComplexUpset)
+library(patchwork)
+library(ggplot2)
+
+conflicted::conflict_scout()
+conflicted::conflict_prefer("data.table", "dplyr")
+conflicted::conflict_prefer("data.table", "purrr")
+
+usethis::use_directory("data")
+usethis::edit_git_ignore()
